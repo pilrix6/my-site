@@ -1,13 +1,1097 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>python-course</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>段嘉豪 - 个人主页</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        dark: '#1e293b',
+                        light: '#f8fafc',
+                        python: '#3776ab',
+                        pythonYellow: '#ffd43b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            }
+            .transition-all-300 {
+                transition: all 0.3s ease;
+            }
+            .hover-scale {
+                transition: transform 0.3s ease;
+            }
+            .hover-scale:hover {
+                transform: scale(1.05);
+            }
+        }
+    </style>
+    <style>
+        /* 悬浮代码运行面板 */
+        .code-runner-panel {
+            position: fixed;
+            width: 440px;
+            max-height: 580px;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            border-radius: 14px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08);
+            z-index: 9999;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+            transition: all 0.35s cubic-bezier(.4,0,.2,1);
+            display: flex;
+            flex-direction: column;
+        }
+        .code-runner-panel.collapsed {
+            max-height: 52px;
+            width: 340px;
+        }
+        .code-runner-panel.minimized {
+            width: 180px;
+            max-height: 52px;
+        }
+        .runner-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.06);
+            cursor: move;
+            user-select: none;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+        .runner-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .runner-controls {
+            display: flex;
+            gap: 6px;
+        }
+        .runner-controls button {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .runner-controls button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .runner-body {
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+            flex: 1;
+        }
+        .editor-label, .output-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 12px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 8px 8px 0 0;
+            color: #a0a0b8;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .editor-label button, .output-label button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .editor-label button:hover, .output-label button:hover {
+            opacity: 1;
+        }
+        .code-textarea {
+            width: 100%;
+            min-height: 110px;
+            padding: 12px;
+            background: #0d0d16;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            color: #e0e0e8;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            tab-size: 4;
+        }
+        .code-textarea:focus {
+            border-color: rgba(99,102,241,0.5);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.1);
+        }
+        .run-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 0;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .run-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(99,102,241,0.4);
+        }
+        .run-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .spinner {
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .output-box {
+            min-height: 70px;
+            max-height: 140px;
+            overflow-y: auto;
+            padding: 12px;
+            background: #0d0d16;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+        }
+        .output-box pre {
+            margin: 0;
+            color: #34d399;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .output-box pre.error { color: #f87171; }
+        .output-placeholder {
+            color: #555;
+            font-size: 13px;
+            text-align: center;
+            padding: 18px 0;
+        }
+        .output-box::-webkit-scrollbar, .code-textarea::-webkit-scrollbar { width: 5px; }
+        .output-box::-webkit-scrollbar-track, .code-textarea::-webkit-scrollbar-track { background: transparent; }
+        .output-box::-webkit-scrollbar-thumb, .code-textarea::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+        /* 课程卡片 */
+        .lesson-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 14px; overflow: hidden; transition: box-shadow 0.3s; }
+        .lesson-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .lesson-header { display: flex; align-items: center; padding: 14px 18px; cursor: pointer; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-bottom: 1px solid #e2e8f0; }
+        .lesson-header:hover { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); }
+        .lesson-number { background: linear-gradient(135deg, #3776ab, #5a9fd4); color: #fff; padding: 3px 11px; border-radius: 16px; font-size: 12px; font-weight: 600; margin-right: 12px; white-space: nowrap; }
+        .lesson-title { flex: 1; margin: 0; font-size: 15px; color: #1e293b; font-weight: 600; }
+        .expand-icon { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; background: #e2e8f0; border-radius: 50%; font-size: 16px; color: #64748b; transition: transform 0.3s; flex-shrink: 0; }
+        .expand-icon.open { transform: rotate(180deg); }
+        .lesson-body { padding: 18px; display: none; }
+        .lesson-body.open { display: block; }
+        .lesson-body p { color: #475569; line-height: 1.8; margin-bottom: 12px; }
+        .code-block { background: #1e293b; border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+        .code-block-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; }
+        .try-btn { background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; color: #fff; padding: 5px 13px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .try-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(99,102,241,0.4); }
+        .code-block pre { margin: 0; padding: 14px; overflow-x: auto; }
+        .code-block code { color: #e2e8f0; font-family: 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.6; }
+        .tips-box { background: #fef9c3; border-radius: 8px; padding: 14px; }
+        .tips-box strong { color: #92400e; display: block; margin-bottom: 6px; }
+        .tips-box li { color: #78350f; line-height: 1.8; }
+
+        /* 状态徽章 */
+        .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+        .status-loading { color: #fbbf24; background: rgba(251,191,36,0.12); }
+        .status-ready { color: #34d399; background: rgba(52,211,153,0.12); }
+        .status-error { color: #f87171; background: rgba(248,113,113,0.12); }
+
+        /* 浮动按钮 */
+        .runner-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3776ab, #5a9fd4);
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 16px rgba(55,118,171,0.4);
+            cursor: pointer;
+            font-size: 22px;
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        .runner-fab:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(55,118,171,0.5); }
+        .runner-fab.hidden { display: none; }
+    </style>
+</head>
+<body class="bg-light text-dark font-sans">
+
+    <!-- ==================== 导航栏 ==================== -->
+    <nav class="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <a href="#" class="text-2xl font-bold text-primary">段嘉豪</a>
+            <div class="hidden md:flex space-x-6">
+                <a href="#about" class="hover:text-primary transition-all-300">关于我</a>
+                <a href="#skills" class="hover:text-primary transition-all-300">技能</a>
+                <a href="#experience" class="hover:text-primary transition-all-300">经历</a>
+                <a href="#python" class="hover:text-primary transition-all-300">Python学习</a>
+                <a href="#contact" class="hover:text-primary transition-all-300">联系方式</a>
+            </div>
+            <button class="md:hidden text-dark focus:outline-none" id="menu-toggle">
+                <i class="fa fa-bars text-xl"></i>
+            </button>
+        </div>
+        <div class="md:hidden hidden bg-white shadow-lg absolute w-full" id="mobile-menu">
+            <div class="container mx-auto px-4 py-3 flex flex-col space-y-3">
+                <a href="#about" class="hover:text-primary transition-all-300 py-2">关于我</a>
+                <a href="#skills" class="hover:text-primary transition-all-300 py-2">技能</a>
+                <a href="#experience" class="hover:text-primary transition-all-300 py-2">经历</a>
+                <a href="#python" class="hover:text-primary transition-all-300 py-2">Python学习</a>
+                <a href="#contact" class="hover:text-primary transition-all-300 py-2">联系方式</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==================== 英雄区 ==================== -->
+    <section class="pt-28 pb-16 bg-gradient-to-b from-blue-50 to-white">
+        <div class="container mx-auto px-4 text-center">
+            <div class="inline-block mb-6 p-3 bg-primary/10 rounded-full">
+                <i class="fa fa-user-circle text-4xl text-primary"></i>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4 text-shadow">段嘉豪</h1>
+            <p class="text-xl md:text-2xl text-gray-600 mb-8">广东科学技术职业学院 | 善于实践的大学生</p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="#contact" class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all-300">联系我</a>
+                <a href="#experience" class="px-6 py-3 bg-white border border-primary text-primary rounded-lg hover:bg-primary/5 transition-all-300">查看经历</a>
+                <a href="#python" class="px-6 py-3 bg-white border border-python text-python rounded-lg hover:bg-python/5 transition-all-300">🐍 Python学习</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== 关于我 ==================== -->
+    <section id="about" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-12">关于我</h2>
+            <div class="max-w-3xl mx-auto">
+                <p class="text-gray-700 mb-6 leading-relaxed">
+                    我是段嘉豪，一名来自广东科学技术职业学院的大学生。我善于实践，在校期间从事手机维修和笔记本清灰服务，通过这些实践积累了丰富的技术经验。
+                </p>
+                <p class="text-gray-700 mb-6 leading-relaxed">
+                    我擅长抓住机会，从校园维修服务开始，逐步探索销售领域，不断拓展自己的技能和视野。我相信实践出真知，通过实际操作和不断学习，我能够解决各种技术问题并提供优质的服务。
+                </p>
+                <p class="text-gray-700 leading-relaxed">
+                    我热爱技术，喜欢挑战，并且始终保持着学习的热情。未来，我希望能够将我的技术能力与商业思维相结合，创造更多价值。
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== 技能 ==================== -->
+    <section id="skills" class="py-16 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-12">我的技能</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md hover-scale">
+                    <div class="text-4xl text-primary mb-4"><i class="fa fa-mobile"></i></div>
+                    <h3 class="text-xl font-semibold mb-2">手机维修</h3>
+                    <p class="text-gray-600">精通各种手机型号的故障诊断和维修，包括屏幕更换、电池更换、主板维修等。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md hover-scale">
+                    <div class="text-4xl text-primary mb-4"><i class="fa fa-laptop"></i></div>
+                    <h3 class="text-xl font-semibold mb-2">笔记本清灰</h3>
+                    <p class="text-gray-600">专业的笔记本电脑清灰服务，有效解决散热问题，延长设备使用寿命。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md hover-scale">
+                    <div class="text-4xl text-primary mb-4"><i class="fa fa-shopping-cart"></i></div>
+                    <h3 class="text-xl font-semibold mb-2">销售能力</h3>
+                    <p class="text-gray-600">具备良好的沟通能力和销售技巧，能够有效地向客户推荐产品和服务。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md hover-scale">
+                    <div class="text-4xl text-primary mb-4"><i class="fa fa-wrench"></i></div>
+                    <h3 class="text-xl font-semibold mb-2">硬件维修</h3>
+                    <p class="text-gray-600">熟悉各种电子设备的硬件结构，能够快速定位和解决硬件故障。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md hover-scale">
+                    <div class="text-4xl text-primary mb-4"><i class="fa fa-comments"></i></div>
+                    <h3 class="text-xl font-semibold mb-2">客户服务</h3>
+                    <p class="text-gray-600">注重客户体验，能够耐心倾听客户需求，提供专业的解决方案。</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md hover-scale">
+                    <div class="text-4xl text-primary mb-4"><i class="fa fa-lightbulb-o"></i></div>
+                    <h3 class="text-xl font-semibold mb-2">创新思维</h3>
+                    <p class="text-gray-600">善于发现机会，能够创造性地解决问题，不断探索新的业务领域。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== 经历 ==================== -->
+    <section id="experience" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-12">我的经历</h2>
+            <div class="max-w-4xl mx-auto">
+                <div class="relative">
+                    <div class="absolute left-0 md:left-1/2 top-0 bottom-0 w-1 bg-gray-200 transform md:translate-x-[-50%]"></div>
+                    <div class="relative mb-12 flex flex-col md:flex-row">
+                        <div class="md:w-1/2 md:pr-8 md:text-right mb-6 md:mb-0">
+                            <div class="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-all-300">
+                                <span class="text-sm text-primary font-semibold">2023年9月 - 至今</span>
+                                <h3 class="text-xl font-bold mb-2">校园手机维修服务</h3>
+                                <p class="text-gray-600">在校园内提供手机维修服务，包括屏幕更换、电池更换、系统调试等，积累了丰富的实践经验和客户资源。</p>
+                            </div>
+                        </div>
+                        <div class="hidden md:block absolute left-1/2 top-6 w-4 h-4 bg-primary rounded-full transform translate-x-[-50%]"></div>
+                        <div class="md:w-1/2 md:pl-8"></div>
+                    </div>
+                    <div class="relative mb-12 flex flex-col md:flex-row">
+                        <div class="md:w-1/2 md:pr-8"></div>
+                        <div class="hidden md:block absolute left-1/2 top-6 w-4 h-4 bg-primary rounded-full transform translate-x-[-50%]"></div>
+                        <div class="md:w-1/2 md:pl-8 mb-6 md:mb-0">
+                            <div class="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-all-300">
+                                <span class="text-sm text-primary font-semibold">2024年2月 - 至今</span>
+                                <h3 class="text-xl font-bold mb-2">笔记本清灰服务</h3>
+                                <p class="text-gray-600">拓展业务范围，开始提供笔记本电脑清灰服务，解决学生们的设备散热问题，获得了良好的口碑。</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="relative mb-12 flex flex-col md:flex-row">
+                        <div class="md:w-1/2 md:pr-8 md:text-right mb-6 md:mb-0">
+                            <div class="bg-gray-50 p-6 rounded-lg shadow-sm hover:shadow-md transition-all-300">
+                                <span class="text-sm text-primary font-semibold">2024年6月 - 至今</span>
+                                <h3 class="text-xl font-bold mb-2">数码产品销售</h3>
+                                <p class="text-gray-600">开始尝试数码产品销售，包括手机配件、电脑周边等，锻炼了销售能力和商业思维。</p>
+                            </div>
+                        </div>
+                        <div class="hidden md:block absolute left-1/2 top-6 w-4 h-4 bg-primary rounded-full transform translate-x-[-50%]"></div>
+                        <div class="md:w-1/2 md:pl-8"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== Python 学习 ==================== -->
+    <section id="python" class="py-16 bg-gradient-to-b from-gray-50 to-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-4">🐍 Python 学习笔记</h2>
+            <p class="text-center text-gray-500 mb-12 max-w-2xl mx-auto">记录我的 Python 学习历程，从零基础开始，逐步掌握编程技能。点击「试一试」可直接在浏览器中运行代码！</p>
+
+            <!-- 课程概览卡片 -->
+            <div class="max-w-4xl mx-auto mb-10">
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg">
+                    <div class="flex flex-col md:flex-row items-center gap-6">
+                        <div class="text-6xl">🐍</div>
+                        <div class="flex-1">
+                            <h3 class="text-2xl font-bold mb-2">Python 基础课程</h3>
+                            <p class="text-blue-100 mb-4">涵盖语法基础、数据结构、函数、面向对象等核心知识，每个章节都配有可运行的代码示例。</p>
+                            <div class="flex flex-wrap gap-3">
+                                <span class="bg-white/20 px-3 py-1 rounded-full text-sm">8 个章节</span>
+                                <span class="bg-white/20 px-3 py-1 rounded-full text-sm">在线运行</span>
+                                <span class="bg-white/20 px-3 py-1 rounded-full text-sm">实战示例</span>
+                            </div>
+                        </div>
+                        <button onclick="openRunner()" class="px-6 py-3 bg-white text-indigo-700 rounded-xl font-semibold hover:bg-blue-50 transition-all-300 shadow-md">
+                            🚀 打开代码运行器
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 课程章节列表 -->
+            <div class="max-w-4xl mx-auto" id="lessons-container">
+
+                <!-- 第1课 -->
+                <div class="lesson-card" data-lesson="0">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 1 课</span>
+                        <h3 class="lesson-title">Hello World - 你的第一个程序</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>每个程序员的学习之旅都从 "Hello World" 开始！<code>print()</code> 是 Python 中最常用的函数之一，用于在屏幕上输出内容。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(0)">🚀 试一试</button></div>
+                            <pre><code># 这是注释，Python会忽略它
+# print() 函数用于输出文字到屏幕
+
+print("Hello, World!")
+print("欢迎学习 Python！")
+print("Python 是一门优雅的语言")</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>Python 使用 # 号表示单行注释</li><li>字符串可以用单引号或双引号包裹</li><li>print() 可以输出多个值，用逗号分隔</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- 第2课 -->
+                <div class="lesson-card" data-lesson="1">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 2 课</span>
+                        <h3 class="lesson-title">变量与数据类型</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>变量是存储数据的容器。在 Python 中，你不需要声明变量类型，Python 会自动推断。Python 有整数(int)、浮点数(float)、字符串(str)、布尔值(bool)等多种数据类型。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(1)">🚀 试一试</button></div>
+                            <pre><code># 变量定义
+name = "小明"        # 字符串
+age = 18            # 整数
+height = 1.75       # 浮点数
+is_student = True   # 布尔值
+
+print("姓名:", name)
+print("年龄:", age)
+print("身高:", height, "米")
+print("是学生吗?", is_student)
+
+# 查看变量类型
+print("\n变量类型:")
+print("name 的类型:", type(name))
+print("age 的类型:", type(age))</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>变量名要有意义，使用小写字母和下划线</li><li>变量名不能以数字开头</li><li>type() 函数可以查看变量的数据类型</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- 第3课 -->
+                <div class="lesson-card" data-lesson="2">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 3 课</span>
+                        <h3 class="lesson-title">运算符与表达式</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>Python 支持各种数学运算：加(+)、减(-)、乘(*)、除(/)、整除(//)、取余(%)、幂(**)。还有比较运算符和逻辑运算符，用于条件判断。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(2)">🚀 试一试</button></div>
+                            <pre><code>a = 10
+b = 3
+
+print("加法:", a + b)      # 13
+print("减法:", a - b)      # 7
+print("乘法:", a * b)      # 30
+print("除法:", a / b)      # 3.333...
+print("整除:", a // b)     # 3
+print("取余:", a % b)      # 1
+print("幂运算:", a ** b)   # 1000
+
+# 比较运算
+print("\n比较运算:")
+print("a > b:", a > b)     # True
+print("a == b:", a == b)   # False</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>/ 返回浮点数，// 返回整数（向下取整）</li><li>** 比 pow() 函数更简洁</li><li>比较运算符返回布尔值 True 或 False</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- 第4课 -->
+                <div class="lesson-card" data-lesson="3">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 4 课</span>
+                        <h3 class="lesson-title">条件判断 (if-elif-else)</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>条件语句让程序能够根据不同情况执行不同的代码。Python 使用缩进来表示代码块，通常使用 4 个空格。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(3)">🚀 试一试</button></div>
+                            <pre><code>score = 85
+
+if score >= 90:
+    grade = "优秀"
+elif score >= 80:
+    grade = "良好"
+elif score >= 60:
+    grade = "及格"
+else:
+    grade = "不及格"
+
+print(f"分数: {score}, 等级: {grade}")
+
+# 判断奇偶数
+num = 7
+if num % 2 == 0:
+    print(f"{num} 是偶数")
+else:
+    print(f"{num} 是奇数")</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>if 后面的条件不需要括号</li><li>冒号 : 不能省略</li><li>elif 是 "else if" 的缩写</li><li>f-string 可以在字符串中嵌入变量</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- 第5课 -->
+                <div class="lesson-card" data-lesson="4">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 5 课</span>
+                        <h3 class="lesson-title">循环结构</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>循环用于重复执行某段代码。Python 有 for 循环和 while 循环两种。for 循环常用于遍历序列，while 循环在条件为真时持续执行。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(4)">🚀 试一试</button></div>
+                            <pre><code># for 循环
+print("=== for 循环 ===")
+for i in range(5):
+    print(f"第 {i+1} 次循环")
+
+# 遍历列表
+fruits = ["苹果", "香蕉", "橙子"]
+print("\n水果列表:")
+for fruit in fruits:
+    print(f"- {fruit}")
+
+# while 循环
+print("\n=== while 循环 ===")
+count = 0
+while count < 3:
+    print(f"count = {count}")
+    count += 1</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>range(n) 生成 0 到 n-1 的序列</li><li>range(start, stop, step) 可以指定起始、结束和步长</li><li>break 可以跳出循环，continue 可以跳过本次循环</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- 第6课 -->
+                <div class="lesson-card" data-lesson="5">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 6 课</span>
+                        <h3 class="lesson-title">列表 (List)</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>列表是 Python 中最常用的数据结构，可以存储多个元素。列表是可变的、有序的，可以包含不同类型的元素。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(5)">🚀 试一试</button></div>
+                            <pre><code>numbers = [1, 2, 3, 4, 5]
+names = ["张三", "李四", "王五"]
+
+# 访问元素
+print("第一个:", names[0])
+print("最后一个:", names[-1])
+
+# 切片
+print("前两个:", numbers[:2])
+print("后两个:", numbers[-2:])
+
+# 列表操作
+names.append("赵六")
+names.insert(0, "钱七")
+names.remove("李四")
+
+print("\n修改后:", names)
+print("长度:", len(names))</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>索引从 0 开始，-1 表示最后一个元素</li><li>切片 [start:end] 包含 start，不包含 end</li><li>append() 在末尾添加，insert() 在指定位置插入</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- 第7课 -->
+                <div class="lesson-card" data-lesson="6">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 7 课</span>
+                        <h3 class="lesson-title">字典 (Dictionary)</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>字典是一种键值对(key-value)数据结构，通过键来访问值。字典非常适合存储结构化数据，如用户信息、配置等。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(6)">🚀 试一试</button></div>
+                            <pre><code>student = {
+    "name": "小明",
+    "age": 18,
+    "grade": "高三",
+    "scores": [85, 92, 78]
+}
+
+print("姓名:", student["name"])
+print("年龄:", student.get("age"))
+
+student["age"] = 19
+student["city"] = "北京"
+
+print("\n学生信息:")
+for key, value in student.items():
+    print(f"  {key}: {value}")</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>使用 get() 方法访问不存在的键不会报错</li><li>items() 返回键值对，keys() 返回键，values() 返回值</li><li>字典的键必须是不可变类型</li></ul></div>
+                    </div>
+                </div>
+
+                <!-- 第8课 -->
+                <div class="lesson-card" data-lesson="7">
+                    <div class="lesson-header" onclick="toggleLesson(this)">
+                        <span class="lesson-number">第 8 课</span>
+                        <h3 class="lesson-title">函数定义</h3>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="lesson-body">
+                        <p>函数是组织好的、可重复使用的代码块。使用函数可以让代码更模块化、更易维护。Python 使用 def 关键字定义函数。</p>
+                        <div class="code-block">
+                            <div class="code-block-header"><span>示例代码</span><button class="try-btn" onclick="loadCode(7)">🚀 试一试</button></div>
+                            <pre><code>def greet(name):
+    """问候函数"""
+    return f"你好, {name}!"
+
+print(greet("小明"))
+
+# 带默认参数
+def power(base, exp=2):
+    return base ** exp
+
+print("\n2的3次方:", power(2, 3))
+print("5的平方:", power(5))
+
+# 多返回值
+def get_info():
+    return "小红", 20
+
+n, a = get_info()
+print(f"\n姓名: {n}, 年龄: {a}")</code></pre>
+                        </div>
+                        <div class="tips-box"><strong>💡 提示</strong><ul><li>函数文档字符串用三引号包裹</li><li>return 可以返回多个值（实际返回元组）</li><li>默认参数必须放在参数列表末尾</li></ul></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== 联系方式 ==================== -->
+    <section id="contact" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-12">联系方式</h2>
+            <div class="max-w-3xl mx-auto">
+                <div class="bg-white p-8 rounded-lg shadow-md">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4">联系信息</h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-center"><i class="fa fa-envelope text-primary mr-3"></i><span>duanjiahao@example.com</span></li>
+                                <li class="flex items-center"><i class="fa fa-phone text-primary mr-3"></i><span>138****1234</span></li>
+                                <li class="flex items-center"><i class="fa fa-map-marker text-primary mr-3"></i><span>广东省广州市</span></li>
+                                <li class="flex items-center"><i class="fa fa-graduation-cap text-primary mr-3"></i><span>广东科学技术职业学院</span></li>
+                            </ul>
+                            <div class="mt-6 flex space-x-4">
+                                <a href="#" class="text-gray-600 hover:text-primary transition-all-300"><i class="fa fa-weixin text-xl"></i></a>
+                                <a href="#" class="text-gray-600 hover:text-primary transition-all-300"><i class="fa fa-qq text-xl"></i></a>
+                                <a href="#" class="text-gray-600 hover:text-primary transition-all-300"><i class="fa fa-weibo text-xl"></i></a>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4">发送消息</h3>
+                            <form>
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 mb-2">姓名</label>
+                                    <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 mb-2">邮箱</label>
+                                    <input type="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 mb-2">消息</label>
+                                    <textarea rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                                </div>
+                                <button type="submit" class="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all-300">发送消息</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== 页脚 ==================== -->
+    <footer class="py-8 bg-dark text-white">
+        <div class="container mx-auto px-4 text-center">
+            <p class="mb-4">段嘉豪 - 个人主页</p>
+            <p class="text-gray-400 text-sm">© 2024 版权所有</p>
+        </div>
+    </footer>
+
+    <!-- ==================== 悬浮代码运行面板 ==================== -->
+    <div class="code-runner-panel" id="codeRunner" style="display:none; right:20px; bottom:20px;">
+        <div class="runner-header" id="runnerHeader">
+            <div class="runner-title">
+                <span>🐍</span>
+                <span>Python 运行环境</span>
+                <span class="status-badge status-loading" id="pyStatus">加载中...</span>
+            </div>
+            <div class="runner-controls">
+                <button onclick="toggleRunner()" title="折叠/展开" id="btnCollapse">▼</button>
+                <button onclick="closeRunner()" title="关闭">✕</button>
+            </div>
+        </div>
+        <div class="runner-body" id="runnerBody">
+            <div>
+                <div class="editor-label">
+                    <span>代码编辑器</span>
+                    <div><button onclick="clearEditor()" title="清空">🗑️</button> <button onclick="copyCode()" title="复制">📋</button></div>
+                </div>
+                <textarea class="code-textarea" id="codeInput" placeholder="在此输入 Python 代码..." spellcheck="false"># 欢迎来到 Python 学习之旅！
+print("Hello, Python!")</textarea>
+            </div>
+            <button class="run-btn" id="runBtn" onclick="runPythonCode()" disabled>
+                <span id="runIcon">▶</span>
+                <span id="runText">运行代码</span>
+            </button>
+            <div>
+                <div class="output-label">
+                    <span>输出结果</span>
+                    <button onclick="clearOutput()" title="清空输出">🗑️</button>
+                </div>
+                <div class="output-box" id="outputBox">
+                    <div class="output-placeholder">运行代码后，输出将显示在这里...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮动打开按钮 -->
+    <button class="runner-fab" id="runnerFab" onclick="openRunner()" title="打开 Python 运行器">🐍</button>
+
+    <!-- ==================== JavaScript ==================== -->
+    <script>
+    // ========== 课程数据 ==========
+    const lessonCodes = [
+`# 这是注释，Python会忽略它
+# print() 函数用于输出文字到屏幕
+
+print("Hello, World!")
+print("欢迎学习 Python！")
+print("Python 是一门优雅的语言")`,
+`# 变量定义
+name = "小明"        # 字符串
+age = 18            # 整数
+height = 1.75       # 浮点数
+is_student = True   # 布尔值
+
+print("姓名:", name)
+print("年龄:", age)
+print("身高:", height, "米")
+print("是学生吗?", is_student)
+
+# 查看变量类型
+print("\\n变量类型:")
+print("name 的类型:", type(name))
+print("age 的类型:", type(age))`,
+`a = 10
+b = 3
+
+print("加法:", a + b)      # 13
+print("减法:", a - b)      # 7
+print("乘法:", a * b)      # 30
+print("除法:", a / b)      # 3.333...
+print("整除:", a // b)     # 3
+print("取余:", a % b)      # 1
+print("幂运算:", a ** b)   # 1000
+
+# 比较运算
+print("\\n比较运算:")
+print("a > b:", a > b)     # True
+print("a == b:", a == b)   # False`,
+`score = 85
+
+if score >= 90:
+    grade = "优秀"
+elif score >= 80:
+    grade = "良好"
+elif score >= 60:
+    grade = "及格"
+else:
+    grade = "不及格"
+
+print(f"分数: {score}, 等级: {grade}")
+
+# 判断奇偶数
+num = 7
+if num % 2 == 0:
+    print(f"{num} 是偶数")
+else:
+    print(f"{num} 是奇数")`,
+`# for 循环
+print("=== for 循环 ===")
+for i in range(5):
+    print(f"第 {i+1} 次循环")
+
+# 遍历列表
+fruits = ["苹果", "香蕉", "橙子"]
+print("\\n水果列表:")
+for fruit in fruits:
+    print(f"- {fruit}")
+
+# while 循环
+print("\\n=== while 循环 ===")
+count = 0
+while count < 3:
+    print(f"count = {count}")
+    count += 1`,
+`numbers = [1, 2, 3, 4, 5]
+names = ["张三", "李四", "王五"]
+
+# 访问元素
+print("第一个:", names[0])
+print("最后一个:", names[-1])
+
+# 切片
+print("前两个:", numbers[:2])
+print("后两个:", numbers[-2:])
+
+# 列表操作
+names.append("赵六")
+names.insert(0, "钱七")
+names.remove("李四")
+
+print("\\n修改后:", names)
+print("长度:", len(names))`,
+`student = {
+    "name": "小明",
+    "age": 18,
+    "grade": "高三",
+    "scores": [85, 92, 78]
+}
+
+print("姓名:", student["name"])
+print("年龄:", student.get("age"))
+
+student["age"] = 19
+student["city"] = "北京"
+
+print("\\n学生信息:")
+for key, value in student.items():
+    print(f"  {key}: {value}")`,
+`def greet(name):
+    """问候函数"""
+    return f"你好, {name}!"
+
+print(greet("小明"))
+
+# 带默认参数
+def power(base, exp=2):
+    return base ** exp
+
+print("\\n2的3次方:", power(2, 3))
+print("5的平方:", power(5))
+
+# 多返回值
+def get_info():
+    return "小红", 20
+
+n, a = get_info()
+print(f"\\n姓名: {n}, 年龄: {a}")`
+    ];
+
+    // ========== 课程卡片展开/折叠 ==========
+    function toggleLesson(header) {
+        const body = header.nextElementSibling;
+        const icon = header.querySelector('.expand-icon');
+        body.classList.toggle('open');
+        icon.classList.toggle('open');
+    }
+
+    // ========== 代码运行面板 ==========
+    let pyodide = null;
+    let pyReady = false;
+    let isRunning = false;
+    const runner = document.getElementById('codeRunner');
+    const fab = document.getElementById('runnerFab');
+    const codeInput = document.getElementById('codeInput');
+    const outputBox = document.getElementById('outputBox');
+    const runBtn = document.getElementById('runBtn');
+    const runIcon = document.getElementById('runIcon');
+    const runText = document.getElementById('runText');
+    const pyStatus = document.getElementById('pyStatus');
+
+    function openRunner() {
+        runner.style.display = 'flex';
+        fab.classList.add('hidden');
+        if (!pyodide) initPyodide();
+    }
+
+    function closeRunner() {
+        runner.style.display = 'none';
+        fab.classList.remove('hidden');
+    }
+
+    function toggleRunner() {
+        runner.classList.toggle('collapsed');
+        const btn = document.getElementById('btnCollapse');
+        btn.textContent = runner.classList.contains('collapsed') ? '▲' : '▼';
+    }
+
+    function loadCode(index) {
+        openRunner();
+        runner.classList.remove('collapsed');
+        document.getElementById('btnCollapse').textContent = '▼';
+        codeInput.value = lessonCodes[index];
+        // 滚动到面板
+        runner.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+
+    function clearEditor() { codeInput.value = ''; }
+    function clearOutput() { outputBox.innerHTML = '<div class="output-placeholder">运行代码后，输出将显示在这里...</div>'; }
+
+    async function copyCode() {
+        try {
+            await navigator.clipboard.writeText(codeInput.value);
+            const btn = event.target;
+            btn.textContent = '✅';
+            setTimeout(() => btn.textContent = '📋', 1500);
+        } catch(e) {}
+    }
+
+    async function initPyodide() {
+        pyStatus.className = 'status-badge status-loading';
+        pyStatus.textContent = '加载 Pyodide...';
+        try {
+            pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/' });
+            pyReady = true;
+            pyStatus.className = 'status-badge status-ready';
+            pyStatus.textContent = '✓ 就绪';
+            runBtn.disabled = false;
+        } catch(e) {
+            pyStatus.className = 'status-badge status-error';
+            pyStatus.textContent = '加载失败';
+            console.error('Pyodide 加载失败:', e);
+        }
+    }
+
+    async function runPythonCode() {
+        if (!pyReady || isRunning || !codeInput.value.trim()) return;
+        isRunning = true;
+        runBtn.disabled = true;
+        runIcon.innerHTML = '<span class="spinner"></span>';
+        runText.textContent = '运行中...';
+        outputBox.innerHTML = '';
+
+        try {
+            await pyodide.runPythonAsync('import sys\nfrom io import StringIO\nsys.stdout = StringIO()');
+            await pyodide.runPythonAsync(codeInput.value);
+            const stdout = await pyodide.runPythonAsync('sys.stdout.getvalue()');
+            outputBox.innerHTML = '<pre>' + escapeHtml(stdout || '(无输出)') + '</pre>';
+        } catch(e) {
+            outputBox.innerHTML = '<pre class="error">' + escapeHtml('❌ 错误:\n' + e.message) + '</pre>';
+        } finally {
+            isRunning = false;
+            runBtn.disabled = false;
+            runIcon.textContent = '▶';
+            runText.textContent = '运行代码';
+        }
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ========== 拖拽面板 ==========
+    (function() {
+        const header = document.getElementById('runnerHeader');
+        let dragging = false, offsetX = 0, offsetY = 0;
+
+        header.addEventListener('mousedown', function(e) {
+            if (e.target.closest('.runner-controls')) return;
+            dragging = true;
+            const rect = runner.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+
+        function onMove(e) {
+            if (!dragging) return;
+            let x = e.clientX - offsetX;
+            let y = e.clientY - offsetY;
+            x = Math.max(0, Math.min(x, window.innerWidth - runner.offsetWidth));
+            y = Math.max(0, Math.min(y, window.innerHeight - 60));
+            runner.style.left = x + 'px';
+            runner.style.top = y + 'px';
+            runner.style.right = 'auto';
+            runner.style.bottom = 'auto';
+        }
+
+        function onUp() {
+            dragging = false;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        }
+    })();
+
+    // ========== 导航 & 滚动效果 ==========
+    document.getElementById('menu-toggle').addEventListener('click', function() {
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
+                document.getElementById('mobile-menu').classList.add('hidden');
+            }
+        });
+    });
+
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('opacity-100', 'translate-y-0');
+                entry.target.classList.remove('opacity-0', 'translate-y-10');
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+    document.querySelectorAll('.hover-scale, .lesson-card').forEach(el => {
+        el.classList.add('opacity-0', 'translate-y-10', 'transition-all', 'duration-700');
+        observer.observe(el);
+    });
+    </script>
+</body>
 </html>
